@@ -34,7 +34,7 @@ interface SessionState {
 export const useSessionStore = create<SessionState>((set, get) => ({
   groqApiKey:
     typeof window !== "undefined"
-      ? localStorage.getItem("groq_api_key") || ""
+      ? localStorage.getItem("groq_api_key") ?? ""
       : "",
   suggestionPrompt: DEFAULT_PROMPTS.suggestion,
   chatPrompt: DEFAULT_PROMPTS.chat,

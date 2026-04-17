@@ -14,7 +14,7 @@ export function useAudioCapture() {
     if (chunksRef.current.length === 0) return;
     const blob = new Blob(chunksRef.current, { type: "audio/webm" });
     chunksRef.current = [];
-    if (blob.size < 1000) return;
+    if (blob.size < 3000) return;
 
     const formData = new FormData();
     formData.append("audio", blob, "chunk.webm");
@@ -25,6 +25,7 @@ export function useAudioCapture() {
         headers: { "x-groq-key": store.groqApiKey },
         body: formData,
       });
+      if (!res.ok) return;
       const data = await res.json();
       if (data.text?.trim()) {
         const chunk: TranscriptChunk = {

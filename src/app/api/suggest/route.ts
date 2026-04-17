@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   const groq = new Groq({ apiKey });
 
   const completion = await groq.chat.completions.create({
-    model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    model: "llama-3.3-70b-versatile",
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
     max_tokens: 600,
