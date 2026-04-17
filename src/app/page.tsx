@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
 import { useSessionStore } from "@/store/sessionStore";
 import TranscriptColumn from "@/components/TranscriptColumn";
 import SuggestionsColumn from "@/components/SuggestionsColumn";
@@ -9,11 +8,6 @@ import ExportButton from "@/components/ExportButton";
 
 export default function Home() {
   const groqApiKey = useSessionStore((s) => s.groqApiKey);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
-
-  if (!mounted) return null;
 
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden">
@@ -29,7 +23,6 @@ export default function Home() {
           <SettingsDrawer />
         </div>
       </header>
-
       <div className="flex flex-1 overflow-hidden divide-x divide-zinc-800">
         <div className="w-1/3 flex flex-col overflow-hidden">
           <TranscriptColumn />
