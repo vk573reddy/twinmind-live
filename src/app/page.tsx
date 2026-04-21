@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { useSessionStore } from "@/store/sessionStore";
 import TranscriptColumn from "@/components/TranscriptColumn";
 import SuggestionsColumn from "@/components/SuggestionsColumn";
@@ -8,6 +9,11 @@ import ExportButton from "@/components/ExportButton";
 
 export default function Home() {
   const groqApiKey = useSessionStore((s) => s.groqApiKey);
+  const initializeFromStorage = useSessionStore((s) => s.initializeFromStorage);
+
+  useEffect(() => {
+    initializeFromStorage();
+  }, [initializeFromStorage]);
 
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden">

@@ -17,6 +17,7 @@ interface SessionState {
   rollingSummary: string;
 
   setGroqApiKey: (key: string) => void;
+  initializeFromStorage: () => void;
   setPrompt: (field: "suggestionPrompt" | "chatPrompt" | "detailPrompt", value: string) => void;
   setSuggestionContextSeconds: (n: number) => void;
   addTranscriptChunk: (chunk: TranscriptChunk) => void;
@@ -32,10 +33,7 @@ interface SessionState {
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
-  groqApiKey:
-    typeof window !== "undefined"
-      ? localStorage.getItem("groq_api_key") ?? ""
-      : "",
+  groqApiKey: "",
   suggestionPrompt: DEFAULT_PROMPTS.suggestion,
   chatPrompt: DEFAULT_PROMPTS.chat,
   detailPrompt: DEFAULT_PROMPTS.detail,
@@ -52,6 +50,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setGroqApiKey: (key) => {
     if (typeof window !== "undefined") localStorage.setItem("groq_api_key", key);
     set({ groqApiKey: key });
+  },
+
+  initializeFromStorage: () => {
+    const key = localStorage.getItem("groq_api_key") ?? "";
+    if (key) set({ groqApiKey: key });
   },
 
   setPrompt: (field, value) => set({ [field]: value }),
