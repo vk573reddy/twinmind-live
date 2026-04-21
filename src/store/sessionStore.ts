@@ -8,6 +8,7 @@ interface SessionState {
   chatPrompt: string;
   detailPrompt: string;
   suggestionContextSeconds: number;
+  detailContextSeconds: number;
   transcript: TranscriptChunk[];
   batches: SuggestionBatch[];
   chat: ChatMessage[];
@@ -20,6 +21,7 @@ interface SessionState {
   initializeFromStorage: () => void;
   setPrompt: (field: "suggestionPrompt" | "chatPrompt" | "detailPrompt", value: string) => void;
   setSuggestionContextSeconds: (n: number) => void;
+  setDetailContextSeconds: (n: number) => void;
   addTranscriptChunk: (chunk: TranscriptChunk) => void;
   addBatch: (batch: SuggestionBatch) => void;
   addChatMessage: (msg: ChatMessage) => void;
@@ -29,6 +31,7 @@ interface SessionState {
   setIsLoadingChat: (v: boolean) => void;
   setRollingSummary: (s: string) => void;
   getRecentTranscript: () => string;
+  getTranscriptForDetail: () => string;
   getFullTranscript: () => string;
 }
 
@@ -38,6 +41,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   chatPrompt: DEFAULT_PROMPTS.chat,
   detailPrompt: DEFAULT_PROMPTS.detail,
   suggestionContextSeconds: 90,
+  detailContextSeconds: 300,
 
   transcript: [],
   batches: [],
@@ -60,6 +64,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setPrompt: (field, value) => set({ [field]: value }),
 
   setSuggestionContextSeconds: (n) => set({ suggestionContextSeconds: n }),
+  setDetailContextSeconds: (n) => set({ detailContextSeconds: n }),
 
   addTranscriptChunk: (chunk) =>
     set((s) => ({ transcript: [...s.transcript, chunk] })),
@@ -84,6 +89,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setIsLoadingSuggestions: (v) => set({ isLoadingSuggestions: v }),
   setIsLoadingChat: (v) => set({ isLoadingChat: v }),
   setRollingSummary: (s) => set({ rollingSummary: s }),
+
+  getTranscriptForDetail: () => {
+    const { transcript, detailContextSeconds } = get();
+    const cutoff = Date.now() - detailContextSeconds * 1000;
+    return transcript
+      .filter((c) => c.timestamp >= cutoff)
+      .map((c) => c.text)
+      .join(" ");
+  },
 
   getRecentTranscript: () => {
     const { transcript, suggestionContextSeconds } = get();
