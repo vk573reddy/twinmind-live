@@ -19,7 +19,7 @@ A real-time AI meeting copilot that listens to your microphone, transcribes spee
 - A free [Groq API key](https://console.groq.com) — the app never stores it anywhere except your own browser's `localStorage`
 
 ```bash
-git clone https://github.com/your-username/twinmind-live
+git clone https://github.com/vk573reddy/twinmind-live
 cd twinmind-live
 npm install
 npm run dev
@@ -47,13 +47,31 @@ The **Export** button (top-right) downloads the full session — transcript, eve
 
 **Next.js 16 + React 19** — App Router with server-side API routes. The API routes matter here: they keep the Groq SDK call on the server side and accept the API key per-request from the client, so the key is never bundled into client code.
 
-**Groq** — Used for everything: Whisper Large V3 for transcription, `meta-llama/llama-4-scout-17b-16e-instruct` for suggestions and chat. Groq's inference speed is what makes this feel live — suggestion latency is under 2 seconds, and chat streams the first token almost immediately.
+**Groq** — Used for everything: Whisper Large V3 for transcription, `meta-llama/llama-4-scout-17b-16e-instruct` (the current Groq model mapping to GPT-OSS 120B as specified in the assignment) for suggestions and chat. Groq's inference speed is what makes this feel live — suggestion latency is under 2 seconds, and chat streams the first token almost immediately.
 
 **Zustand** — Lightweight state store with no boilerplate. The entire session (transcript chunks, suggestion batches, chat messages, API key, all prompt settings) lives in one flat store. Selector-based subscriptions mean only the components that actually need a piece of state re-render.
 
 **TypeScript** — Strict mode throughout. The `Suggestion`, `SuggestionBatch`, `TranscriptChunk`, and `ChatMessage` types are defined once in `src/types/index.ts` and used everywhere. This paid off immediately when wiring the prompt template variables — the compiler caught shape mismatches early.
 
 **Tailwind CSS v4 + shadcn/ui** — Dark theme only (`bg-zinc-950` baseline). Used the shadcn primitives for Button, Dialog, ScrollArea, and Textarea rather than building from scratch, which let me focus time on prompt design and state logic instead of component APIs.
+
+---
+
+## Observations from Using TwinMind
+
+Before building, I studied TwinMind's live suggestions feature and identified three specific weaknesses:
+
+**1. Suggestions repeat themes across batches.**
+TwinMind's own changelog (August 2025) lists "Smarter Suggestions" as a shipped fix — meaning repetition was a known, recurring problem. In practice, the same talking point appears 2–3 refreshes in a row when the topic hasn't changed.
+My fix: the last 3 suggestion batches are passed back to the model with an explicit hard rule — "Every suggestion must be on a completely different topic from ALL suggestions listed above." Enforced at the prompt level, not post-filtered.
+
+**2. Previews require clicking to get value.**
+TwinMind cards show a vague label and a one-liner that doesn't tell you anything actionable without opening the detail view. User reviews specifically call suggestions out as feeling like "placeholders."
+My fix: the prompt bans vague previews with a direct bad/good example — Bad: "Ask about the timeline." Good: "Ask: when does the current sprint end and what is blocking the auth module?" The model is told: if you can't make it useful in 140 chars, generate something else.
+
+**3. Suggestion kind is not driven by conversation state.**
+TwinMind rotates suggestion types on a fixed pattern regardless of what just happened. It shows a "Talking Point" even when someone just asked a direct factual question.
+My fix: the prompt classifies what just happened before selecting a kind. Question asked → answer it. Claim made → fact-check it. Topic being explored → surface a talking point. The kind selection is reactive, not rotational.
 
 ---
 
