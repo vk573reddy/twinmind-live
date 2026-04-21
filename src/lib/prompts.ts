@@ -4,8 +4,9 @@ export const DEFAULT_PROMPTS = {
   CONTEXT:
   - Rolling summary of earlier conversation: {{ROLLING_SUMMARY}}
   - Recent transcript (last ~90 seconds): {{RECENT_TRANSCRIPT}}
-  - Last 3 suggestion batches you already produced (DO NOT repeat these themes unless the conversation explicitly revisited them):
+  - Previous suggestions already shown (YOU MUST NOT repeat any of these — produce completely different suggestions):
   {{PREVIOUS_BATCHES}}
+  CRITICAL: If your suggestions are similar to any previous batch above, throw them out and generate entirely new ones.
   
   YOUR TASK:
   Analyze what is happening RIGHT NOW and produce exactly 3 suggestions.

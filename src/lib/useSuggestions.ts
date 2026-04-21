@@ -36,13 +36,16 @@ export function useSuggestions() {
 
     store.setIsLoadingSuggestions(true);
     try {
+      const previousBatches = store.batches.slice(0, 3);
+      console.log("[useSuggestions] previousBatches being sent:", JSON.stringify(previousBatches.map(b => b.suggestions.map(s => `[${s.kind}] ${s.preview}`))));
+
       const res = await fetch("/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recentTranscript,
           rollingSummary: store.rollingSummary,
-          previousBatches: store.batches.slice(0, 3),
+          previousBatches,
           promptTemplate: store.suggestionPrompt,
           apiKey: store.groqApiKey,
         }),

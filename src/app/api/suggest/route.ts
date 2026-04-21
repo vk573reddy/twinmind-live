@@ -28,6 +28,9 @@ export async function POST(req: NextRequest) {
       .replace("{{RECENT_TRANSCRIPT}}", recentTranscript || "")
       .replace("{{PREVIOUS_BATCHES}}", previousBatchesText);
 
+    console.log("[suggest/route] previousBatchesText injected:\n", previousBatchesText);
+    console.log("[suggest/route] final prompt (first 500 chars):", prompt.slice(0, 500));
+
     const groq = new Groq({ apiKey });
 
     const completion = await groq.chat.completions.create({
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest) {
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       max_tokens: 600,
-      temperature: 0.4,
+      temperature: 0.7,
     });
 
     const content = completion.choices[0]?.message?.content || "{}";
