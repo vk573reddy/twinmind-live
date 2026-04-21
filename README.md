@@ -8,7 +8,7 @@ A real-time AI meeting copilot that listens to your microphone, transcribes spee
 
 > Paste your Groq API key in Settings (top-right gear icon) after opening the app.
 
-**Deployed URL:** _(add your Vercel/Netlify URL here after deploying)_
+**Deployed URL:** [https://twinmind-live-nu.vercel.app/](https://twinmind-live-nu.vercel.app/)
 
 ---
 
