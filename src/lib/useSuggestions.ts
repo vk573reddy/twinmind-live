@@ -22,6 +22,7 @@ export function useSuggestions() {
           apiKey: store.groqApiKey,
         }),
       });
+      if (!res.ok) return;
       const summary = await res.text();
       store.setRollingSummary(summary);
     } catch (err) {
