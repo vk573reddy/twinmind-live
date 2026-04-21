@@ -5,12 +5,12 @@ import { SuggestionBatch, Suggestion } from "@/types";
 const REFRESH_INTERVAL_MS = 30_000;
 
 export function useSuggestions() {
-  const store = useSessionStore();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const updateRollingSummary = useCallback(async () => {
-    const fullTranscript = store.getFullTranscript();
-    if (!fullTranscript || !store.groqApiKey) return;
+    const { getFullTranscript, groqApiKey, setRollingSummary } = useSessionStore.getState();
+    const fullTranscript = getFullTranscript();
+    if (!fullTranscript || !groqApiKey) return;
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -19,35 +19,36 @@ export function useSuggestions() {
           messages: [{ role: "user", content: "Summarize this meeting in 3 sentences max." }],
           fullTranscript,
           promptTemplate: "You are a summarizer. Meeting transcript: {{FULL_TRANSCRIPT}}",
-          apiKey: store.groqApiKey,
+          apiKey: groqApiKey,
         }),
       });
       if (!res.ok) return;
       const summary = await res.text();
-      store.setRollingSummary(summary);
+      setRollingSummary(summary);
     } catch (err) {
       console.error("Summary error:", err);
     }
-  }, [store]);
+  }, []);
 
   const fetchSuggestions = useCallback(async () => {
-    const recentTranscript = store.getRecentTranscript();
-    if (!recentTranscript || !store.groqApiKey) return;
+    const { getRecentTranscript, groqApiKey, rollingSummary, suggestionPrompt, batches, setIsLoadingSuggestions, addBatch } = useSessionStore.getState();
+    const recentTranscript = getRecentTranscript();
+    if (!recentTranscript || !groqApiKey) return;
 
-    store.setIsLoadingSuggestions(true);
+    const previousBatches = batches.slice(0, 3);
+    console.log("[useSuggestions] previousBatches being sent:", JSON.stringify(previousBatches.map(b => b.suggestions.map(s => `[${s.kind}] ${s.preview}`))));
+
+    setIsLoadingSuggestions(true);
     try {
-      const previousBatches = store.batches.slice(0, 3);
-      console.log("[useSuggestions] previousBatches being sent:", JSON.stringify(previousBatches.map(b => b.suggestions.map(s => `[${s.kind}] ${s.preview}`))));
-
       const res = await fetch("/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recentTranscript,
-          rollingSummary: store.rollingSummary,
+          rollingSummary,
           previousBatches,
-          promptTemplate: store.suggestionPrompt,
-          apiKey: store.groqApiKey,
+          promptTemplate: suggestionPrompt,
+          apiKey: groqApiKey,
         }),
       });
 
@@ -63,17 +64,18 @@ export function useSuggestions() {
         })),
       };
 
-      store.addBatch(batch);
+      addBatch(batch);
 
-      if (store.batches.length > 0 && store.batches.length % 3 === 0) {
+      const updatedBatches = useSessionStore.getState().batches;
+      if (updatedBatches.length > 0 && updatedBatches.length % 3 === 0) {
         await updateRollingSummary();
       }
     } catch (err) {
       console.error("Suggestion error:", err);
     } finally {
-      store.setIsLoadingSuggestions(false);
+      useSessionStore.getState().setIsLoadingSuggestions(false);
     }
-  }, [store, updateRollingSummary]);
+  }, [updateRollingSummary]);
 
   const startAutoRefresh = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);

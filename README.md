@@ -162,6 +162,8 @@ All prompts have a "Reset to default" button.
 
 **JSON mode for suggestions, streaming for chat.** Suggestions need a structured array of objects — JSON mode guarantees parseable output without prompt-hacking. Chat is streamed because the first-token latency is what makes chat feel alive; seeing the response appear word by word is meaningfully better UX than waiting for the full answer.
 
+**WebM header preservation for continuous recording.** `MediaRecorder.start(3000)` emits the EBML/WebM container header only in the very first `ondataavailable` chunk. Subsequent chunks are raw audio clusters — valid for streaming but not for upload to Whisper, which requires a self-contained file. The fix is to save that first chunk in a `headerChunkRef` and prepend it to every subsequent blob before sending, making each upload a complete, decodable WebM file without ever stopping the recorder.
+
 **No speaker diarization.** The transcription is a flat text stream with no speaker labels. Adding diarization (e.g. via a post-processing step) would significantly improve suggestion quality in multi-speaker meetings — the model could reason about "the interviewer just asked X" vs "the candidate said Y". This is the highest-value improvement I'd make with more time.
 
 ---

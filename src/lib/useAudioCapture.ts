@@ -3,39 +3,48 @@ import { useSessionStore } from "@/store/sessionStore";
 import { TranscriptChunk } from "@/types";
 
 const CHUNK_INTERVAL_MS = 20_000;
-const KEEP_ALIVE_INTERVAL_MS = 5_000;
 const MIN_BLOB_SIZE = 5000;
 
 export function useAudioCapture() {
+  const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  // First ondataavailable chunk contains the WebM EBML header.
+  // Every subsequent blob must include it or Whisper returns 500.
+  const headerChunkRef = useRef<Blob | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const store = useSessionStore();
 
   const sendChunk = useCallback(async () => {
-    if (chunksRef.current.length === 0) return;
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== "recording") return;
 
-    // Guard: only send if recorder is still active
-    if (mediaRecorderRef.current?.state !== "recording") {
-      console.error("[useAudioCapture] sendChunk called but recorder state is:", mediaRecorderRef.current?.state);
-      return;
-    }
+    // Flush any buffered data since the last timeslice tick
+    mediaRecorderRef.current.requestData();
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+    const chunks = [...chunksRef.current];
     chunksRef.current = [];
+
+    if (chunks.length === 0) return;
+
+    // Prepend the saved header chunk so every blob is a self-contained WebM file
+    const blobParts = headerChunkRef.current ? [headerChunkRef.current, ...chunks] : chunks;
+    const mimeType = mediaRecorderRef.current.mimeType;
+    const blob = new Blob(blobParts, { type: mimeType });
     if (blob.size < MIN_BLOB_SIZE) return;
 
     const formData = new FormData();
-    formData.append("audio", blob, "chunk.webm");
+    formData.append("audio", blob, "audio.webm");
 
     try {
       const res = await fetch("/api/transcribe", {
         method: "POST",
-        headers: { "x-groq-key": store.groqApiKey },
+        headers: { "x-groq-key": useSessionStore.getState().groqApiKey },
         body: formData,
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.error("Transcribe failed:", res.status);
+        return;
+      }
       const data = await res.json();
       if (data.text?.trim()) {
         const chunk: TranscriptChunk = {
@@ -43,53 +52,59 @@ export function useAudioCapture() {
           timestamp: Date.now(),
           text: data.text.trim(),
         };
-        store.addTranscriptChunk(chunk);
+        useSessionStore.getState().addTranscriptChunk(chunk);
       }
     } catch (err) {
-      console.error("[useAudioCapture] Transcription error:", err);
+      console.error("Transcription error:", err);
     }
-
-    // Verify recorder is still running after sending
-    if (mediaRecorderRef.current?.state !== "recording") {
-      console.error("[useAudioCapture] Recorder stopped unexpectedly after chunk send.");
-    }
-  }, [store]);
+  }, []);
 
   const start = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
+      });
+      streamRef.current = stream;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/mp4";
+
+      const recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
+      headerChunkRef.current = null;
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data && e.data.size > 0) {
+          // Save the very first chunk — it carries the EBML/WebM header
+          if (!headerChunkRef.current) {
+            headerChunkRef.current = e.data;
+          }
+          chunksRef.current.push(e.data);
+        }
       };
 
-      // 3000ms timeslice — more reliable cross-browser than 1000ms
       recorder.start(3000);
-      store.setIsRecording(true);
-
+      useSessionStore.getState().setIsRecording(true);
       intervalRef.current = setInterval(sendChunk, CHUNK_INTERVAL_MS);
-
-      // Keep-alive: check every 5s that the recorder hasn't silently stopped
-      keepAliveRef.current = setInterval(() => {
-        if (mediaRecorderRef.current?.state !== "recording") {
-          console.error("[useAudioCapture] Keep-alive check: recorder is not in 'recording' state —", mediaRecorderRef.current?.state);
-        }
-      }, KEEP_ALIVE_INTERVAL_MS);
     } catch {
       alert("Microphone access denied. Please allow mic access and reload.");
     }
-  }, [sendChunk, store]);
+  }, [sendChunk]);
 
   const stop = useCallback(() => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current?.stream.getTracks().forEach((t) => t.stop());
     if (intervalRef.current) clearInterval(intervalRef.current);
-    if (keepAliveRef.current) clearInterval(keepAliveRef.current);
-    sendChunk();
-    store.setIsRecording(false);
-  }, [sendChunk, store]);
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    headerChunkRef.current = null;
+    useSessionStore.getState().setIsRecording(false);
+  }, []);
 
   return { start, stop };
 }

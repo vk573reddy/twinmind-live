@@ -23,6 +23,8 @@ export const DEFAULT_PROMPTS = {
      - Something was ambiguous → "clarification"
   5. If recent transcript has fewer than 15 new words, return {"silent": true}.
   6. Never be vague. Bad: "Ask about timeline". Good: "Ask: when does Q2 end and what is blocking the auth module?"
+  7. For talking_point: NEVER invent statistics or percentages not mentioned in the transcript. Instead, name a specific concept, tradeoff, or insight from what was actually said.
+  8. Ground every suggestion in something specific from the recent transcript — a name, a system, a claim, a phrase the speaker used.
   
   RESPOND ONLY with this exact JSON, nothing else:
   {
